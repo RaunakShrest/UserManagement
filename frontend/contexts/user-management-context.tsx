@@ -197,7 +197,7 @@ export default function UserManagementProvider({
         pagination: response.data?.message?.pagination || {},
       }));
     } catch (error) {
-      console.error("Error fetching retailers data:", error);
+      console.error("Error fetching users data:", error);
     } finally {
       setLoading(false);
     }

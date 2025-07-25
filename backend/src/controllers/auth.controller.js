@@ -242,6 +242,11 @@ const userSignin = async (req, res, next) => {
     if (!passwordMatch) {
       throw new ApiError(401, "Email or Password does not match");
     }
+
+    if (existingUser.userType === "user") {
+      throw new ApiError(403, "User cannot login for now");
+    }
+
     if (
       existingUser.userType === "admin" &&
       existingUser.status !== "enabled"
