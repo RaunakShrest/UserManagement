@@ -6,10 +6,12 @@ import {
   getCurrentUser,
   userSignin,
   userSignout,
+  refreshAccessToken,
 } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 router.post("/getAccessToken", generateRefreshAndAccessToken);
+router.post("/refresh-access-token", refreshAccessToken);
 
 router.get("/get-current-user", checkUserAuth, getCurrentUser);
 
