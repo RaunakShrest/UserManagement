@@ -73,11 +73,10 @@ const refreshAccessToken = async (req, res, next) => {
         process.env.REFRESH_TOKEN_SECRET
       );
     } catch (error) {
-      error.statusCode = 401;
-      error.data = null;
-      error.success = false;
-      error.name = "jwt error";
-      next(error);
+      const jwtError = new Error("Invalid or expired refresh token");
+      jwtError.statusCode = 401;
+      jwtError.name = "jwt error";
+      return next(jwtError);
     }
 
     const user = await UserModel.findOne({ _id: decodedRefreshToken?._id });

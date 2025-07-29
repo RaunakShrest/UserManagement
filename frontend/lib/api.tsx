@@ -28,32 +28,84 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+api.interceptors.request.use(
+  (config: InternalAxiosRequestConfig) => {
+    const token = localStorage.getItem("accessToken");
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    console.log("❌ REQUEST INTERCEPTOR ERROR:", error);
+    return Promise.reject(error);
+  }
+);
 api.interceptors.response.use(
-  (response: AxiosResponse) => response,
+  (response: AxiosResponse) => {
+    return response;
+  },
   async (error) => {
     const previousConfig = error.config as CustomAxiosRequestConfig;
 
+    const is401Error = error.response?.status === 401;
+    const isNotRetry = !previousConfig._retry;
+    const isNotRefreshEndpoint = !previousConfig.url?.includes(
+      "refresh-access-token"
+    );
+    const isNotLoginEndpoint = !previousConfig.url?.includes("login");
+
     if (
-      error.response?.data?.statusCode === 401 &&
-      error.response?.data?.name?.toLowerCase() === "jwt error" &&
-      !previousConfig._retry
+      is401Error &&
+      isNotRetry &&
+      isNotRefreshEndpoint &&
+      isNotLoginEndpoint
     ) {
       previousConfig._retry = true;
 
+      const refreshToken = localStorage.getItem("refreshToken");
+
+      if (!refreshToken) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        window.location.href = "/login";
+        return Promise.reject(error);
+      }
+
       try {
-        const response = await axios.post(
-          `${previousConfig.baseURL}/users/refresh-access-token`,
-          {
-            refreshToken: localStorage.getItem("refreshToken"),
+        const refreshAxios = axios.create({
+          baseURL: api.defaults.baseURL,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const response = await refreshAxios.post("/auth/refresh-access-token", {
+          refreshToken: refreshToken,
+        });
+
+        const { accessToken, refreshToken: newRefreshToken } =
+          response.data?.data;
+
+        if (accessToken && newRefreshToken) {
+          localStorage.setItem("accessToken", accessToken);
+          localStorage.setItem("refreshToken", newRefreshToken);
+
+          if (previousConfig.headers) {
+            previousConfig.headers.Authorization = `Bearer ${accessToken}`;
           }
-        );
 
-        const { accessToken, refreshToken } = response.data?.data;
-        localStorage.setItem("accessToken", accessToken);
-        localStorage.setItem("refreshToken", refreshToken);
-
-        return await api(previousConfig);
+          const retryResponse = await api(previousConfig);
+          return retryResponse;
+        } else {
+          throw new Error("Invalid response from refresh endpoint");
+        }
       } catch (refreshError) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        window.location.href = "/login";
+
         return Promise.reject(refreshError);
       }
     }

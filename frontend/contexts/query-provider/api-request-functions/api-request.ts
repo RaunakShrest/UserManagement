@@ -57,19 +57,13 @@ export interface ApiError {
 
 export const getCurrentUser = async (): Promise<GetCurrentUserResponse> => {
   try {
-    const accessToken = localStorage.getItem("accessToken");
-
-    if (!accessToken) {
-      throw new Error("Access token not found");
-    }
-
     const response = await api.get<GetCurrentUserResponse>(
       "/auth/get-current-user"
     );
 
     return response.data;
   } catch (error: any) {
-    throw error?.response;
+    throw error?.response || error;
   }
 };
 
