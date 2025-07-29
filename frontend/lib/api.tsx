@@ -1,5 +1,9 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
+interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
+
 const api = axios.create({
   headers: {
     "Content-Type": "application/json",
@@ -24,24 +28,6 @@ api.interceptors.request.use(
   }
 );
 
-interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
-  _retry?: boolean;
-}
-
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem("accessToken");
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    console.log("❌ REQUEST INTERCEPTOR ERROR:", error);
-    return Promise.reject(error);
-  }
-);
 api.interceptors.response.use(
   (response: AxiosResponse) => {
     return response;
@@ -54,7 +40,7 @@ api.interceptors.response.use(
     const isNotRefreshEndpoint = !previousConfig.url?.includes(
       "refresh-access-token"
     );
-    const isNotLoginEndpoint = !previousConfig.url?.includes("login");
+    const isNotLoginEndpoint = !previousConfig.url?.endsWith("/auth/signin");
 
     if (
       is401Error &&
